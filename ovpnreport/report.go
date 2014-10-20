@@ -75,10 +75,10 @@ func LoginsReport(logs []*OpenVpnLogin) {
 
 	table.SetHeader([]string{"User", "Count", "Last Seen At", "# Unique IPs", "Unique IPs"})
 	// table.SetBorder(false)
-	//
 
 	for user, record := range logins {
 
+		fmt.Printf("")
 		table.Append([]string{
 			lime + user + reset,
 			strconv.Itoa(record.Count),

@@ -1,9 +1,11 @@
 package ovpnreport
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jandre/go-papertrail/papertrail"
+	"github.com/visionmedia/go-spin"
 )
 
 type Papertrail struct {
@@ -86,8 +88,26 @@ func (p *Papertrail) Fetch() ([]*OpenVpnLogin, error) {
 	var logins []*OpenVpnLogin
 	var continueSearch bool = true
 	var maxId string = p.MaxID
+	var fetched int = 0
+
+	timer := time.NewTicker(300 * time.Millisecond)
+
+	s := spin.New()
+
+	go func() {
+		for _ = range timer.C {
+			fmt.Printf("\r  %s \033[36mfetching logs\033[m [%d] ", s.Next(), fetched)
+		}
+	}()
+
+	defer func() {
+		timer.Stop()
+		fmt.Printf("\r  %s \033[36mfetching logs\033[m [%d] ... done! \n\n ", s.Next(), fetched)
+	}()
 
 	for continueSearch {
+
+		s.Next()
 
 		logs, response, err := p.fetchWithMax(maxId)
 
@@ -95,14 +115,17 @@ func (p *Papertrail) Fetch() ([]*OpenVpnLogin, error) {
 			return nil, err
 		}
 
-		if response.ReachedTimeLimit && !response.ReachedBeginning {
-			debug("continuing with search: %s, %s", response.MaxID, response)
+		logins = append(logins, logs...)
+		fetched = len(logins)
+
+		if response.ReachedTimeLimit && !response.ReachedBeginning &&
+			response.MinID != maxId {
+			debug("continuing with search: %s, %s", response.MinID, response)
 			continueSearch = true
-			maxId = response.MaxID
+			maxId = response.MinID
 		} else {
 			continueSearch = false
 		}
-		logins = append(logins, logs...)
 
 	}
 
