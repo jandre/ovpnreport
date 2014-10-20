@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -42,17 +41,15 @@ func main() {
 		switch val["type"] {
 		case "papertrail":
 
-			debug("using papertrail as an input: %q", val)
+			debug("using papertrail as an input: %q, %s, %s", val, config.Start, config.End)
 
 			papertrail := ovpnreport.NewPapertrail(val["token"])
+			papertrail.MinTime = config.Start
+			papertrail.MaxTime = config.End
 			logins, _ := papertrail.Fetch()
-			// log.Printf("XXX GOT %q", logins, len(logins))
 			loginsByHostname := ovpnreport.LoginsByHostname(logins)
+			ovpnreport.LoginsReportByHost(loginsByHostname)
 
-			for hostname, hostLogins := range loginsByHostname {
-				fmt.Printf("--- Logins report for %s ---\n", hostname)
-				ovpnreport.LoginsReport(hostLogins)
-			}
 		default:
 			log.Fatalf("unrecognized config %s", val)
 		}

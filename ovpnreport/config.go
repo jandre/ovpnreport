@@ -11,15 +11,20 @@ import (
 var debug = Debug("ovpnreport")
 
 type Config struct {
-	Start  time.Time           `json: "start_time"` // time at which to start reporting on user logins
-	End    time.Time           `json: "end_time"`   // time at which to end reporting on user logins
-	Inputs []map[string]string `json: "inputs"`
-	Db     string              `json: "db_path"`
+	// Start     time.Time
+	// End       time.Time
+	Start  time.Time           `json:"start_time"`
+	End    time.Time           `json:"end_time"`
+	Inputs []map[string]string `json:"inputs"`
+	Db     string              `json:"db_path"`
 }
+
+var (
+	ONE_DAY_BACK time.Duration = time.Hour * time.Duration(-24)
+)
 
 func NewConfig(file string) (*Config, error) {
 	var config Config
-	var ONE_DAY_BACK time.Duration = time.Hour * time.Duration(-24)
 
 	bytes, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -27,6 +32,8 @@ func NewConfig(file string) (*Config, error) {
 	}
 
 	err = json.Unmarshal(bytes, &config)
+	debug("Using configuration: %q", config)
+
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +48,6 @@ func NewConfig(file string) (*Config, error) {
 	if config.Db == "" {
 		config.Db = "./db.sqlite3"
 	}
-
-	cfg, _ := json.Marshal(config)
-	debug("Using configuration: %q", cfg)
 
 	return &config, nil
 }

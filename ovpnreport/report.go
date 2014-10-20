@@ -59,6 +59,14 @@ func newCounts(logs []*OpenVpnLogin) map[string]*counts {
 	return loginsByUser
 }
 
+func LoginsReportByHost(loginsByHostname OpenVpnLogins) {
+
+	for hostname, hostLogins := range loginsByHostname {
+		fmt.Printf("--- Logins report for %s%s%s ---\n", green, hostname, reset)
+		LoginsReport(hostLogins)
+	}
+}
+
 func LoginsReport(logs []*OpenVpnLogin) {
 
 	logins := newCounts(logs)

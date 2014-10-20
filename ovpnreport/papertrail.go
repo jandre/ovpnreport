@@ -40,16 +40,23 @@ func (p *Papertrail) fetchWithMax(id string) ([]*OpenVpnLogin, *papertrail.Searc
 	}
 
 	options := papertrail.SearchOptions{
-		Query: p.Query,
+		Query:   p.Query,
+		MinTime: p.MinTime,
+		MaxTime: p.MaxTime,
 	}
 
 	if id != "" {
 		options.MaxID = id
 	}
 
+	debug("querying papertrail with options: %q", options)
+
 	response, _, err := p.Client.Search(options)
 
-	debug("got response: %q", response)
+	if response != nil {
+		debug("got response: %q", response)
+	}
+
 	logins = make([]*OpenVpnLogin, 0, len(response.Events))
 
 	if err != nil {
@@ -88,7 +95,8 @@ func (p *Papertrail) Fetch() ([]*OpenVpnLogin, error) {
 			return nil, err
 		}
 
-		if response.ReachedTimeLimit {
+		if response.ReachedTimeLimit && !response.ReachedBeginning {
+			debug("continuing with search: %s, %s", response.MaxID, response)
 			continueSearch = true
 			maxId = response.MaxID
 		} else {

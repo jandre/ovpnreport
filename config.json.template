@@ -1,8 +1,6 @@
 {
-  "inputs": [
-  
-  ],
-  "outputs": [
-  
-  ]
+  "inputs": [{
+   "type": "papertrail",
+   "token": "YOUR_TOKEN_HERE"
+    }]
 }
