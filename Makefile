@@ -10,7 +10,9 @@ else
 ECHO=/bin/echo -e
 endif
 
-all: deps
+all: deps build
+
+build:
 	@mkdir -p bin/
 	@$(ECHO) "$(OK_COLOR)==> Building$(NO_COLOR)"
 	@go build -o bin/ovpnreport
@@ -35,4 +37,4 @@ test: deps
 	@$(ECHO) "$(OK_COLOR)==> Testing ovpnreport...$(NO_COLOR)"
 	go test -v ./...
 
-.PHONY: all clean deps format test updatedeps
+.PHONY: all build clean deps format test updatedeps

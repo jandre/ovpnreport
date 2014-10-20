@@ -8,13 +8,6 @@ import (
 	"time"
 )
 
-type OpenVpnLogin struct {
-	Timestamp time.Time
-	User      string
-	IpAddress *net.IP
-	Port      int
-}
-
 var regexpMatchAfNet *regexp.Regexp = regexp.MustCompile(`(\w{3,4} \w{3}\s+\d+ \d+:\d+:\d+ \d+) [\d:\.]+ \[(\w+)\] Peer Connection Initiated with \[AF_INET\](\d+.\d+.\d+.\d+):(\d+)`)
 
 func tryParseAfnet(input string) *OpenVpnLogin {
@@ -42,6 +35,10 @@ func tryParseAfnet(input string) *OpenVpnLogin {
 	return ovpn
 }
 
+//
+// parseLog() will parse a log line
+// and return an OpenVpnLogin
+//
 func parseLog(input string) *OpenVpnLogin {
 	return (tryParseAfnet(input))
 }
