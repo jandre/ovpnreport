@@ -94,12 +94,14 @@ func (p *Papertrail) Fetch() ([]*OpenVpnLogin, error) {
 
 	s := spin.New()
 
+	// print status  
 	go func() {
 		for _ = range timer.C {
 			fmt.Printf("\r  %s \033[36mfetching logs\033[m [%d] ", s.Next(), fetched)
 		}
 	}()
 
+	// stop printing download status 
 	defer func() {
 		timer.Stop()
 		fmt.Printf("\r  %s \033[36mfetching logs\033[m [%d] ... done! \n\n ", s.Next(), fetched)
@@ -116,6 +118,7 @@ func (p *Papertrail) Fetch() ([]*OpenVpnLogin, error) {
 		}
 
 		logins = append(logins, logs...)
+
 		fetched = len(logins)
 
 		if response.ReachedTimeLimit && !response.ReachedBeginning &&

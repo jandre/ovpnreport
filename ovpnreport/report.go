@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
-
-	"strings"
 
 	"github.com/karlbunch/tablewriter"
 	"github.com/mgutz/ansi"
@@ -19,44 +16,55 @@ var (
 	reset = ansi.ColorCode("reset")
 )
 
-type counts struct {
-	UniqueIps  map[string]bool
-	Count      int
-	LastSeenAt time.Time
-}
+func NewLogins(db *Db, hostname string, logins []*OpenVpnLogin) map[string]*OpenVpnLogin {
+	var newLogins map[string]*OpenVpnLogin
 
-func (c *counts) UniqueIpsString() string {
-	keys := make([]string, 0, len(c.UniqueIps))
-	for k := range c.UniqueIps {
-		keys = append(keys, k)
+	for _, login := range logins {
+		if newLogins[login.User] == nil {
+			if db.IsNewLoginForUser(login.User, login.Timestamp, hostname) {
+				newLogins[login.User] = login
+			}
+		}
 	}
 
-	return strings.Join(keys, ",")
+	return newLogins
 }
 
-func newCounts(logs []*OpenVpnLogin) map[string]*counts {
-	var loginsByUser map[string]*counts = make(map[string]*counts)
+func NewLoginsReport(db *Db, loginsByHostname OpenVpnLogins) {
 
-	for i := range logs {
-		log := logs[i]
-		if loginsByUser[log.User] != nil {
-			loginsByUser[log.User].Count++
-			loginsByUser[log.User].UniqueIps[log.IpAddress.String()] = true
-			if loginsByUser[log.User].LastSeenAt.Before(log.Timestamp) {
-				loginsByUser[log.User].LastSeenAt = log.Timestamp
+	for hostname, hostLogins := range loginsByHostname {
+
+		newLogins := NewLogins(db, hostname, hostLogins)
+
+		if len(newLogins) > 0 {
+			fmt.Printf("--- New Logins (Never Seen Before) on %s%s%s ---\n", green, hostname, reset)
+
+			table := tablewriter.NewWriter(os.Stdout)
+
+			table.SetHeader([]string{"User", "IP", "Port", "Location"})
+			// table.SetBorder(false)
+
+			for user, record := range newLogins {
+				var loc string
+
+				if record.City != "" {
+					loc = record.City + ", " + record.Country
+				}
+
+				fmt.Printf("")
+				table.Append([]string{
+					lime + user + reset,
+					record.Timestamp.String(),
+					record.IpAddress.String(),
+					loc,
+				})
 			}
-		} else {
-			ips := make(map[string]bool)
-			ips[log.IpAddress.String()] = true
-			loginsByUser[log.User] = &counts{
-				Count:      1,
-				LastSeenAt: log.Timestamp,
-				UniqueIps:  ips,
-			}
+
+			table.Render()
+			fmt.Printf("\n")
 
 		}
 	}
-	return loginsByUser
 }
 
 func LoginsReportByHost(loginsByHostname OpenVpnLogins) {
@@ -73,7 +81,7 @@ func LoginsReport(logs []*OpenVpnLogin) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"User", "Count", "Last Seen At", "# Unique IPs", "Unique IPs"})
+	table.SetHeader([]string{"User", "Count", "Last Seen At", "# Unique IPs", "Unique IPs", "Locations"})
 	// table.SetBorder(false)
 
 	for user, record := range logins {
@@ -85,6 +93,7 @@ func LoginsReport(logs []*OpenVpnLogin) {
 			record.LastSeenAt.String(),
 			strconv.Itoa(len(record.UniqueIps)),
 			record.UniqueIpsString(),
+			record.UniqueLocationsString(),
 		})
 	}
 

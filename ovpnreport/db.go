@@ -9,14 +9,17 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type LoginHistory struct {
-	Id          int64
-	User        string
-	IpAddress   string
-	Hostname    string
-	Count       int64
-	FirstSeenAt time.Time
-	LastSeenAt  time.Time
+type DbOpenVpnLogin struct {
+	Id        int64
+	Timestamp time.Time
+	User      string
+	IpAddress string
+	Port      int
+	Hostname  string
+	City      string
+	Country   string
+	Latitude  float64
+	Longitude float64
 }
 
 //
@@ -32,10 +35,9 @@ type Db struct {
 //
 func (db *Db) setup() {
 
-	if !db.connection.HasTable(&LoginHistory{}) {
-		db.connection.CreateTable(&LoginHistory{})
-		db.connection.Model(&LoginHistory{}).AddIndex("user")
-		db.connection.Model(&LoginHistory{}).AddIndex("ip_address")
+	if !db.connection.HasTable(&DbOpenVpnLogin{}) {
+		db.connection.CreateTable(&DbOpenVpnLogin{})
+		db.connection.Model(&DbOpenVpnLogin{}).AddIndex("user")
 	}
 }
 
@@ -43,15 +45,13 @@ func (db *Db) setup() {
 // IsNewLoginForUser(string,ip,time) returns true
 // if we haven't seen this ip for this user before the max time
 //
-func (db *Db) IsNewLoginForUser(user string, before time.Time) bool {
-	var login LoginHistory
-	err := db.connection.
-		Model(&LoginHistory{}).
-		Where("user = ? and first_seen_at < ?", user, before).
+func (db *Db) IsNewLoginForUser(user string, before time.Time, hostname string) bool {
+	var login DbOpenVpnLogin
+	db.connection.
+		Model(&DbOpenVpnLogin{}).
+		Where("user = ? and timestamp < ? and hostname = ?", user, before, hostname).
 		First(&login)
-	if err != nil {
-		log.Panicf("Unable to query IsNewLoginForUser", err)
-	}
+
 	if login.Id != 0 {
 		return false
 	}
@@ -62,12 +62,11 @@ func (db *Db) IsNewLoginForUser(user string, before time.Time) bool {
 // IsNewIpForUser(string,ip,time) returns true
 // if we haven't seen this ip for this user before the max time
 //
-func (db *Db) IsNewIpForUser(user string, ip *net.IP, since time.Time) bool {
-	var login LoginHistory
-	err := db.connection.Model(&LoginHistory{}).Where("user = ? and ip_address = ? and last_seen_at < ?", user, ip.String(), since).First(&login)
-	if err != nil {
-		log.Panicf("Unable to query IsNewIpForUser", err)
-	}
+func (db *Db) IsNewIpForUser(user string, ip *net.IP, since time.Time, hostname string) bool {
+	var login DbOpenVpnLogin
+	db.
+		connection.Model(&DbOpenVpnLogin{}).
+		Where("user = ? and ip_address = ? and timestamp < ? and hostname = ?", user, ip.String(), since, hostname).First(&login)
 	log.Printf("XXX", login)
 	if login.Id != 0 {
 		return false
@@ -76,46 +75,46 @@ func (db *Db) IsNewIpForUser(user string, ip *net.IP, since time.Time) bool {
 }
 
 //
+// Save() saves a collection of OpenVpnLogins to the database.
+//
+func (db *Db) Save(loginsByHostname OpenVpnLogins) {
+
+	for _, logins := range loginsByHostname {
+		db.ImportLogs(logins)
+	}
+}
+
+//
 // ImportLogs(logs[]) imports an array of vpn logs into the database.
 //
 func (db *Db) ImportLogs(logs []*OpenVpnLogin) {
-	log.Printf("Populating Sqlite... (%s entries)", len(logs))
+	debug("Populating Sqlite... (%s entries)", len(logs))
 	for i := range logs {
-		var login LoginHistory
-		err := db.connection.Model(&LoginHistory{}).
-			Where("user = ? and ip_address = ?", logs[i].User, logs[i].IpAddress.String()).
-			First(&login)
-		if err != nil {
-			log.Panicf("Unable to query", err)
-		}
-		if login.Id != 0 {
+		var login DbOpenVpnLogin
+		db.connection.Model(&DbOpenVpnLogin{}).
+			Where(&DbOpenVpnLogin{
+			User:      logs[i].User,
+			IpAddress: logs[i].IpAddress.String(),
+			Hostname:  logs[i].Hostname,
+			Timestamp: logs[i].Timestamp,
+			Port:      logs[i].Port,
+		}).First(&login)
+		if login.Id == 0 {
 
-			lastSeen := login.LastSeenAt
-			firstSeen := login.FirstSeenAt
-
-			if lastSeen.Before(logs[i].Timestamp) {
-				lastSeen = logs[i].Timestamp
-			}
-			if firstSeen.After(logs[i].Timestamp) {
-				firstSeen = logs[i].Timestamp
-			}
-
-			db.connection.Model(&login).Update(&LoginHistory{
-				LastSeenAt:  lastSeen,
-				FirstSeenAt: firstSeen,
-				Count:       login.Count + 1,
+			db.connection.Model(&DbOpenVpnLogin{}).Create(&DbOpenVpnLogin{
+				User:      logs[i].User,
+				IpAddress: logs[i].IpAddress.String(),
+				Hostname:  logs[i].Hostname,
+				Timestamp: logs[i].Timestamp,
+				Port:      logs[i].Port,
+				Latitude:  logs[i].Latitude,
+				Longitude: logs[i].Longitude,
+				City:      logs[i].City,
+				Country:   logs[i].Country,
 			})
-
-		} else {
-			login.User = logs[i].User
-			login.LastSeenAt = logs[i].Timestamp
-			login.FirstSeenAt = logs[i].Timestamp
-			login.IpAddress = logs[i].IpAddress.String()
-			login.Count = 1
-			db.connection.Table("login_histories").Create(login)
 		}
 	}
-	log.Printf("Finished Populating Sqlite...")
+	debug("Finished Populating Sqlite...")
 }
 
 //

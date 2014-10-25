@@ -13,10 +13,12 @@ var debug = Debug("ovpnreport")
 type Config struct {
 	// Start     time.Time
 	// End       time.Time
-	Start  time.Time           `json:"start_time"`
-	End    time.Time           `json:"end_time"`
-	Inputs []map[string]string `json:"inputs"`
-	Db     string              `json:"db_path"`
+	Start   time.Time           `json:"start_time"`
+	End     time.Time           `json:"end_time"`
+	Inputs  []map[string]string `json:"inputs"`
+	Db      string              `json:"db_path"`
+	GeoIPDb string              `json:"geoip_db"`
+	Save    bool
 }
 
 var (
@@ -32,6 +34,7 @@ func NewConfig(file string) (*Config, error) {
 	}
 
 	err = json.Unmarshal(bytes, &config)
+
 	debug("Using configuration: %q", config)
 
 	if err != nil {
@@ -41,6 +44,7 @@ func NewConfig(file string) (*Config, error) {
 	if config.End.IsZero() {
 		config.End = time.Now()
 	}
+
 	if config.Start.IsZero() {
 		config.Start = config.End.Add(ONE_DAY_BACK)
 	}

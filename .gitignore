@@ -1,2 +1,6 @@
 bin/
 config.json
+*.dat
+*.sqlite3
+*.mmdb
+tmp/

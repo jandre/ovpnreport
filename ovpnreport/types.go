@@ -11,6 +11,10 @@ type OpenVpnLogin struct {
 	IpAddress *net.IP
 	Port      int
 	Hostname  string
+	City      string
+	Country   string
+	Latitude  float64
+	Longitude float64
 }
 
 type OpenVpnLogins map[string]([]*OpenVpnLogin)
